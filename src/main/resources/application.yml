@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: order-payment
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/orderpayment}
+    username: ${DB_USER:orderpayment}
+    password: ${DB_PASSWORD:orderpayment}
+  jpa:
+    hibernate:
+      ddl-auto: none        # Flyway owns the schema
+    open-in-view: false     # responses are mapped inside service transactions, not in the view layer
+  flyway:
+    enabled: true
+
+server:
+  port: ${SERVER_PORT:8090}
+
+payment:
+  # Simulated PSP declines orders above this amount (cents) — used to exercise the compensation path.
+  decline-above-cents: ${PAYMENT_DECLINE_ABOVE:500000}
+
+outbox:
+  relay-interval-ms: 1000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.portfolio.orderpayment: DEBUG
