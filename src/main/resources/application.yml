@@ -11,6 +11,12 @@ spring:
     open-in-view: false     # responses are mapped inside service transactions, not in the view layer
   flyway:
     enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
 
 server:
   port: ${SERVER_PORT:8090}
@@ -21,6 +27,7 @@ payment:
 
 outbox:
   relay-interval-ms: 1000
+  topic: order-events
 
 management:
   endpoints:

@@ -1,6 +1,6 @@
 # ADR-0003 — Transactional outbox
 
-- **Status:** Accepted (relay logs today; Kafka roadmap)
+- **Status:** Accepted
 - **Date:** 2026-06
 
 ## Context
@@ -27,8 +27,9 @@ is decoupled from the request.
 
 - Verified: every order outcome wrote an outbox row, and the scheduled relay published all of them
   (`OrderConfirmed`, `OrderRejected` ×2).
-- Today the relay logs the event to stand in for a broker. Swapping in **Kafka** is a localized
-  change to the relay loop — the table, polling, and atomic write are already in place.
+- The relay publishes to a **Kafka** topic (`order-events`), marking each row published only after
+  the broker acknowledges. Events written while Kafka was down stay unpublished and are delivered on
+  recovery — verified end-to-end (broker killed, orders placed, then delivered when it came back).
 - Polling adds latency (≤ the relay interval) and load. Fine at this scale; a CDC-based outbox
   (Debezium) would remove polling if throughput demands it.
 

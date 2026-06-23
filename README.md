@@ -6,8 +6,8 @@ with compensation, **idempotent** request handling, atomic stock decrements, and
 outbox**.
 
 > **Status:** active build. Milestone 1 (saga + idempotency + outbox) is implemented and verified
-> end-to-end against Postgres, including a concurrency test that proves no oversell. The Kafka relay
-> is tracked below. This README is honest about what runs today vs. what is roadmap.
+> end-to-end against Postgres — including a concurrency test that proves no oversell and a Kafka relay
+> that survives broker downtime. This README is honest about what runs today vs. what is roadmap.
 
 ![CI](https://github.com/jinwovo/order-payment/actions/workflows/ci.yml/badge.svg)
 
@@ -39,7 +39,8 @@ over $5,000.
 | Oversell blocked | `DESK × 999` | `REJECTED` (`OUT_OF_STOCK`) | stock stays **5** |
 
 Each outcome also writes an `OrderConfirmed` / `OrderRejected` row to the outbox, which the relay
-publishes (logged today; Kafka on the roadmap).
+publishes to a **Kafka** topic (`order-events`) — marking a row published only after the broker
+acknowledges, so events parked while Kafka was down are delivered on recovery (verified).
 
 And under real concurrency: a Testcontainers test ([`OrderConcurrencyTest`](src/test/java/com/portfolio/orderpayment/OrderConcurrencyTest.java))
 fires **30 simultaneous orders** at a 5-unit product and asserts **exactly 5 confirm**, the other 25
@@ -90,12 +91,14 @@ why failure recovery must compensate rather than roll back. See
 - **Compensation** — a committed reservation followed by a declined payment triggers an explicit
   stock release.
 - **Reliable events** — the outbox row is written in the **same transaction** as the state change;
-  a scheduled relay publishes unpublished rows. [ADR-0003](docs/adr/0003-transactional-outbox.md)
+  a scheduled relay publishes unpublished rows to Kafka, marking them published only after the ack.
+  [ADR-0003](docs/adr/0003-transactional-outbox.md)
 
 ## Tech stack
 
 - **Java 21**, **Spring Boot 4.1**, Spring Data JPA (Hibernate)
 - **PostgreSQL** + **Flyway** migrations
+- **Kafka** as the outbox event sink
 - **Testcontainers** for integration tests against real Postgres
 - Micrometer / Prometheus actuator metrics
 
@@ -104,7 +107,7 @@ why failure recovery must compensate rather than roll back. See
 Requires JDK 21 (bundled Gradle wrapper) and Docker.
 
 ```bash
-docker compose up -d          # Postgres
+docker compose up -d          # Postgres + Kafka
 ./gradlew bootRun             # app on :8090, Flyway migrates on start
 ```
 
@@ -148,9 +151,9 @@ src/main/resources/db/migration   Flyway schema + seed
 
 ## Roadmap
 
-- Outbox relay → **Kafka** (today it logs; the loop and table are ready).
 - Payment **void** on the rare confirm-after-authorize failure (compensation is wired, not yet
   triggered by a failure path).
+- Consumer-side dedupe example for the at-least-once Kafka stream.
 
 ## Decision records
 
