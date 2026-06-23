@@ -114,6 +114,15 @@ docker compose up -d          # Postgres + Kafka
 ./gradlew bootRun             # app on :8090, Flyway migrates on start
 ```
 
+Or build and run the app itself as a container (it connects to the compose Postgres/Kafka):
+
+```bash
+docker build -t order-payment .
+docker run --rm -p 8090:8090 \
+  -e DB_URL=jdbc:postgresql://host.docker.internal:5432/orderpayment \
+  -e KAFKA_BOOTSTRAP=host.docker.internal:9092 order-payment
+```
+
 Place an order (idempotent — run it twice, get the same order):
 
 ```bash
