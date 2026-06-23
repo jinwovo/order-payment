@@ -30,6 +30,9 @@ is decoupled from the request.
 - The relay publishes to a **Kafka** topic (`order-events`), marking each row published only after
   the broker acknowledges. Events written while Kafka was down stay unpublished and are delivered on
   recovery — verified end-to-end (broker killed, orders placed, then delivered when it came back).
+- The downstream `OrderEventConsumer` processes the stream **idempotently**: a `processed_event`
+  ledger skips redelivered event ids, turning at-least-once delivery into effectively-once processing
+  (verified by replaying a duplicate). The outbox row id rides along as the `event-id` Kafka header.
 - Polling adds latency (≤ the relay interval) and load. Fine at this scale; a CDC-based outbox
   (Debezium) would remove polling if throughput demands it.
 

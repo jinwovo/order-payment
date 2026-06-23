@@ -93,6 +93,9 @@ why failure recovery must compensate rather than roll back. See
 - **Reliable events** — the outbox row is written in the **same transaction** as the state change;
   a scheduled relay publishes unpublished rows to Kafka, marking them published only after the ack.
   [ADR-0003](docs/adr/0003-transactional-outbox.md)
+- **Idempotent consumption** — the `order-events` consumer builds a read-model projection and records
+  each processed event id in a ledger, so an at-least-once redelivery is processed exactly once
+  (verified by replaying a duplicate message).
 
 ## Tech stack
 
@@ -144,6 +147,7 @@ src/main/java/com/portfolio/orderpayment
 ├── payment/      external PSP gateway (simulated)
 ├── idempotency/  key claim + replay lookup
 ├── outbox/       transactional outbox + scheduled relay
+├── fulfillment/  Kafka consumer → idempotent read-model projection
 ├── saga/         OrderSagaOrchestrator
 └── web/          REST API + error handling
 src/main/resources/db/migration   Flyway schema + seed
@@ -153,7 +157,6 @@ src/main/resources/db/migration   Flyway schema + seed
 
 - Payment **void** on the rare confirm-after-authorize failure (compensation is wired, not yet
   triggered by a failure path).
-- Consumer-side dedupe example for the at-least-once Kafka stream.
 
 ## Decision records
 

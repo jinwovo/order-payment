@@ -2,19 +2,23 @@ package com.portfolio.orderpayment.outbox;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Polls the outbox and relays unpublished events to Kafka, marking each row published only after the
- * broker acknowledges. A send that fails throws, rolling back the batch so the rows are retried next
- * cycle — at-least-once delivery decoupled from the request path. Consumers dedupe by event id.
+ * broker acknowledges. The outbox row id is attached as an {@code event-id} header so the consumer
+ * can deduplicate. A send that fails throws, rolling back the batch so rows are retried next cycle —
+ * at-least-once delivery decoupled from the request path.
  */
 @Slf4j
 @Component
@@ -32,9 +36,13 @@ public class OutboxRelay {
     public void publishPending() {
         List<OutboxEvent> batch = outbox.findTop100ByPublishedAtIsNullOrderByIdAsc();
         for (OutboxEvent event : batch) {
+            ProducerRecord<String, String> record =
+                    new ProducerRecord<>(topic, event.getAggregateId(), event.getPayload());
+            record.headers().add(new RecordHeader("event-id",
+                    String.valueOf(event.getId()).getBytes(StandardCharsets.UTF_8)));
             try {
                 // Block on the ack so we only mark published once Kafka has the record.
-                kafka.send(topic, event.getAggregateId(), event.getPayload()).get(5, TimeUnit.SECONDS);
+                kafka.send(record).get(5, TimeUnit.SECONDS);
             } catch (Exception e) {
                 throw new IllegalStateException("kafka publish failed for outbox #" + event.getId(), e);
             }
