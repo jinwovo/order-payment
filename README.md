@@ -6,8 +6,8 @@ with compensation, **idempotent** request handling, atomic stock decrements, and
 outbox**.
 
 > **Status:** active build. Milestone 1 (saga + idempotency + outbox) is implemented and verified
-> end-to-end against Postgres. Kafka relay and concurrency stress are tracked below. This README is
-> honest about what runs today vs. what is roadmap.
+> end-to-end against Postgres, including a concurrency test that proves no oversell. The Kafka relay
+> is tracked below. This README is honest about what runs today vs. what is roadmap.
 
 ![CI](https://github.com/jinwovo/order-payment/actions/workflows/ci.yml/badge.svg)
 
@@ -40,6 +40,10 @@ over $5,000.
 
 Each outcome also writes an `OrderConfirmed` / `OrderRejected` row to the outbox, which the relay
 publishes (logged today; Kafka on the roadmap).
+
+And under real concurrency: a Testcontainers test ([`OrderConcurrencyTest`](src/test/java/com/portfolio/orderpayment/OrderConcurrencyTest.java))
+fires **30 simultaneous orders** at a 5-unit product and asserts **exactly 5 confirm**, the other 25
+are rejected, and stock lands at **0** — the atomic conditional decrement holds, no oversell.
 
 ## The saga
 
@@ -145,7 +149,6 @@ src/main/resources/db/migration   Flyway schema + seed
 ## Roadmap
 
 - Outbox relay → **Kafka** (today it logs; the loop and table are ready).
-- Concurrency test proving no oversell under parallel orders for the last unit (Testcontainers).
 - Payment **void** on the rare confirm-after-authorize failure (compensation is wired, not yet
   triggered by a failure path).
 
