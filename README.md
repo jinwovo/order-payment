@@ -13,6 +13,12 @@ outbox**.
 
 ---
 
+## Demo
+
+The four reliability scenarios, verified end-to-end against Postgres + Kafka:
+
+![order-payment — reliability scenarios](docs/demo/demo.png)
+
 ## The problem
 
 Placing an order spans steps that don't share a transaction — reserve stock, charge an external PSP,
