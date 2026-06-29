@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>order-payment — Saga · 멱등성 · 오버셀 방지</title>
+<style>
+  :root{--bg:#0b0e14;--panel:#141925;--panel2:#1b2230;--line:#263042;--txt:#e6edf3;--mut:#8b97a8;--acc:#5eb1ff;--ok:#3fb950;--bad:#f85149;--chip:#222b3a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,Roboto,sans-serif}
+  .wrap{max-width:760px;margin:0 auto;padding:40px 22px 80px}
+  h1{font-size:26px;margin:0 0 4px}
+  .sub{color:var(--mut);font-size:14px;margin:0 0 22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:18px}
+  .prod{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:12px;padding:14px}
+  .prod h3{margin:0 0 2px;font-size:16px}
+  .prod .meta{color:var(--mut);font-size:13px;margin-bottom:10px}
+  .prod .stock{color:var(--acc)}
+  .qty{display:flex;gap:8px;align-items:center}
+  .qty input{width:64px;background:#0b0f17;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-family:ui-monospace,monospace}
+  button{cursor:pointer;border-radius:8px;border:1px solid var(--line);font-weight:600}
+  .add{background:#21262d;color:var(--txt);padding:6px 12px;font-size:13px}
+  .cart{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+  .cart .row{display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:13px;padding:3px 0}
+  .cart .empty{color:var(--mut);font-size:13px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .place{background:var(--acc);color:#06121f;border-color:var(--acc);padding:10px 20px;font-size:15px}
+  .idem{background:#21262d;color:var(--txt);padding:10px 16px;font-size:14px}
+  .hint{color:var(--mut);font-size:12.5px;margin:4px 0 18px}
+  .result{border-radius:12px;padding:16px 18px;border:1px solid var(--line);background:var(--panel)}
+  .badge{display:inline-block;font-weight:700;font-size:14px;padding:3px 12px;border-radius:999px;margin-bottom:8px}
+  .b-ok{color:var(--ok);border:1px solid #234} .b-bad{color:var(--bad);border:1px solid #5a2}
+  .mono{font-family:ui-monospace,monospace;font-size:12.5px;color:var(--mut)}
+  a{color:var(--mut);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>order-payment</h1>
+  <p class="sub">분산 트랜잭션을 <b>Saga + 보상</b>으로. 주문 → 원자적 재고차감 → 결제 → 확정. 재고 부족이면 보상 트랜잭션으로 롤백(오버셀 0). <b>멱등성 키</b>로 중복 주문 방지.</p>
+
+  <div class="grid" id="products"></div>
+
+  <div class="cart">
+    <div style="font-weight:600;margin-bottom:8px">주문 라인</div>
+    <div id="cart-lines"><div class="empty">상품의 "추가"를 눌러 담으세요.</div></div>
+  </div>
+
+  <div class="actions">
+    <button class="place" onclick="placeOrder(false)">주문하기 (Saga 실행)</button>
+    <button class="idem" onclick="placeOrder(true)">같은 멱등키로 재전송</button>
+  </div>
+  <div class="hint">💡 재고보다 많이 담아 주문하면 <b>보상 트랜잭션</b>으로 FAILED(오버셀 방지). "같은 멱등키 재전송"은 중복이 아니라 <b>같은 주문</b>이 반환됩니다.</div>
+
+  <div id="result"></div>
+
+  <p style="margin-top:24px"><a href="https://github.com/jinwovo" target="_blank">↗ GitHub</a></p>
+</div>
+
+<script>
+const PRODUCTS = [
+  { sku:'SKU-LAPTOP', name:'Laptop',        priceCents:150000, stock:10 },
+  { sku:'SKU-MOUSE',  name:'Mouse',           priceCents:2500,  stock:100 },
+  { sku:'SKU-DESK',   name:'Standing Desk',  priceCents:45000,  stock:5 },
+];
+const won = c => '₩' + (c).toLocaleString();
+const cart = {}; // sku -> qty
+let lastKey = null;
+
+document.getElementById('products').innerHTML = PRODUCTS.map(p => `
+  <div class="prod">
+    <h3>${p.name}</h3>
+    <div class="meta">${won(p.priceCents)} · 재고 <span class="stock">${p.stock}</span> · <span class="mono">${p.sku}</span></div>
+    <div class="qty">
+      <input id="q-${p.sku}" type="number" min="1" value="1" />
+      <button class="add" onclick="addLine('${p.sku}')">추가</button>
+    </div>
+  </div>`).join('');
+
+function addLine(sku){
+  const q = Math.max(1, parseInt(document.getElementById('q-'+sku).value || '1', 10));
+  cart[sku] = (cart[sku] || 0) + q;
+  renderCart();
+}
+function renderCart(){
+  const keys = Object.keys(cart);
+  const el = document.getElementById('cart-lines');
+  if(!keys.length){ el.innerHTML = '<div class="empty">상품의 "추가"를 눌러 담으세요.</div>'; return; }
+  el.innerHTML = keys.map(sku => {
+    const p = PRODUCTS.find(x=>x.sku===sku);
+    return `<div class="row"><span>${p.name} × ${cart[sku]}</span><span>${won(p.priceCents*cart[sku])}</span></div>`;
+  }).join('');
+}
+
+async function placeOrder(reuseKey){
+  const lines = Object.entries(cart).map(([sku,quantity]) => ({sku, quantity}));
+  if(!lines.length){ showResult({error:'주문 라인이 비어 있습니다.'}); return; }
+  const key = (reuseKey && lastKey) ? lastKey : crypto.randomUUID();
+  lastKey = key;
+  showResult({loading:true});
+  try {
+    const res = await fetch('/orders', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Idempotency-Key':key},
+      body: JSON.stringify({lines})
+    });
+    const data = await res.json().catch(()=>({error:'응답 파싱 실패 ('+res.status+')'}));
+    if(!res.ok && !data.status){ data.error = data.error || data.message || ('HTTP '+res.status); }
+    showResult({data, key, reuseKey});
+  } catch(e){ showResult({error:String(e)}); }
+}
+
+function showResult(s){
+  const el = document.getElementById('result');
+  if(s.loading){ el.innerHTML = '<div class="result mono">Saga 실행 중…</div>'; return; }
+  if(s.error){ el.innerHTML = `<div class="result"><span class="badge b-bad">오류</span><div>${s.error}</div></div>`; return; }
+  const d = s.data;
+  const ok = d.status === 'CONFIRMED';
+  el.innerHTML = `<div class="result">
+    <span class="badge ${ok?'b-ok':'b-bad'}">${d.status || 'UNKNOWN'}${ok?' ✓':' ✗'}</span>
+    ${s.reuseKey ? '<span class="mono"> · 같은 멱등키 재전송 → 동일 주문 반환</span>' : ''}
+    <div style="margin:6px 0">${ok ? ('합계 '+won(d.totalCents)) : ('보상됨 — '+(d.failureReason||'재고 부족'))}</div>
+    <div class="mono">order=${d.id||'-'}</div>
+    <div class="mono">idempotency-key=${s.key}</div>
+    ${(d.items||[]).map(i=>`<div class="mono">· ${i.sku} × ${i.quantity}</div>`).join('')}
+  </div>`;
+}
+</script>
+</body>
+</html>
