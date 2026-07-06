@@ -15,6 +15,13 @@ outbox**.
 
 ## Demo
 
+Live demo UI (served from the app at `:8090`) — stage a scenario, run the saga, and watch each step
+resolve: live stock from Postgres, the compensation that releases a reservation after a declined
+payment, and the **event pipeline console** polling until the outbox → Kafka → idempotent-consumer
+projection lands:
+
+![order-payment — live demo UI](docs/demo/ui.png)
+
 The four reliability scenarios, verified end-to-end against Postgres + Kafka:
 
 ![order-payment — reliability scenarios](docs/demo/demo.png)
@@ -151,6 +158,8 @@ curl -s localhost:8090/orders \
 |---|---|---|
 | `POST` | `/orders` | Header `Idempotency-Key` required. Body `{ lines: [{ sku, quantity }] }`. Returns the order with final status. |
 | `GET` | `/orders/{id}` | Fetch an order. |
+| `GET` | `/orders/{id}/fulfillment` | Consumer-side read model. 404 until the event has travelled outbox → Kafka → consumer, so a poll observes the pipeline end to end. |
+| `GET` | `/products` | Catalog with live stock — watch reservations and compensations move real inventory. |
 
 ## Project layout
 

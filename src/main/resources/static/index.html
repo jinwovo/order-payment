@@ -1,130 +1,471 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>order-payment — Saga · 멱등성 · 오버셀 방지</title>
-<style>
-  :root{--bg:#0b0e14;--panel:#141925;--panel2:#1b2230;--line:#263042;--txt:#e6edf3;--mut:#8b97a8;--acc:#5eb1ff;--ok:#3fb950;--bad:#f85149;--chip:#222b3a}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Pretendard,Roboto,sans-serif}
-  .wrap{max-width:760px;margin:0 auto;padding:40px 22px 80px}
-  h1{font-size:26px;margin:0 0 4px}
-  .sub{color:var(--mut);font-size:14px;margin:0 0 22px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-bottom:18px}
-  .prod{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:12px;padding:14px}
-  .prod h3{margin:0 0 2px;font-size:16px}
-  .prod .meta{color:var(--mut);font-size:13px;margin-bottom:10px}
-  .prod .stock{color:var(--acc)}
-  .qty{display:flex;gap:8px;align-items:center}
-  .qty input{width:64px;background:#0b0f17;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-family:ui-monospace,monospace}
-  button{cursor:pointer;border-radius:8px;border:1px solid var(--line);font-weight:600}
-  .add{background:#21262d;color:var(--txt);padding:6px 12px;font-size:13px}
-  .cart{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
-  .cart .row{display:flex;justify-content:space-between;font-family:ui-monospace,monospace;font-size:13px;padding:3px 0}
-  .cart .empty{color:var(--mut);font-size:13px}
-  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
-  .place{background:var(--acc);color:#06121f;border-color:var(--acc);padding:10px 20px;font-size:15px}
-  .idem{background:#21262d;color:var(--txt);padding:10px 16px;font-size:14px}
-  .hint{color:var(--mut);font-size:12.5px;margin:4px 0 18px}
-  .result{border-radius:12px;padding:16px 18px;border:1px solid var(--line);background:var(--panel)}
-  .badge{display:inline-block;font-weight:700;font-size:14px;padding:3px 12px;border-radius:999px;margin-bottom:8px}
-  .b-ok{color:var(--ok);border:1px solid #234} .b-bad{color:var(--bad);border:1px solid #5a2}
-  .mono{font-family:ui-monospace,monospace;font-size:12.5px;color:var(--mut)}
-  a{color:var(--mut);font-size:13px}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order & Payment — saga demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #111111; --primary-active: #242424;
+      --ink: #111111; --body: #374151; --muted: #6b7280; --muted-soft: #898989;
+      --hairline: #e5e7eb; --hairline-soft: #f3f4f6;
+      --canvas: #ffffff; --surface-soft: #f8f9fa; --surface-card: #f5f5f5;
+      --dark: #101010; --dark-elevated: #1a1a1a;
+      --on-dark: #ffffff; --on-dark-soft: #a1a1aa;
+      --success: #10b981; --error: #ef4444; --warning: #f59e0b;
+      --violet: #8b5cf6; --emerald: #34d399; --orange: #fb923c; --pink: #ec4899;
+      --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px; --r-pill: 9999px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+      --shadow-md: 0 4px 16px rgba(0,0,0,.08);
+      --font-display: 'Space Grotesk', Inter, -apple-system, sans-serif;
+      --font-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      font-family: var(--font-body); color: var(--body); background: var(--canvas);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+    }
+
+    /* Top bar */
+    .appbar {
+      height: 64px; border-bottom: 1px solid var(--hairline);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; position: sticky; top: 0; background: rgba(255,255,255,.85);
+      backdrop-filter: saturate(180%) blur(8px); z-index: 10;
+    }
+    .wordmark { display: flex; align-items: center; gap: 10px; font-family: var(--font-display);
+      font-weight: 600; font-size: 17px; letter-spacing: -.4px; color: var(--ink); }
+    .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--primary);
+      display: grid; place-items: center; }
+    .mark::after { content: '₩'; color: #fff; font-size: 11px; font-weight: 700; font-family: var(--font-body); }
+    .backend-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface-card); border-radius: var(--r-pill);
+      padding: 6px 14px 6px 10px; font-family: var(--font-mono); font-size: 13px;
+      font-weight: 500; color: var(--ink); border: 1px solid var(--hairline);
+    }
+    .backend-badge .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+    .backend-badge .dot.ok { background: var(--success); }
+    .backend-badge .dot.bad { background: var(--error); }
+
+    /* Layout */
+    .wrap { max-width: 940px; margin: 0 auto; padding: 48px 24px 80px; }
+    .hero h1 { font-family: var(--font-display); font-weight: 600; font-size: 44px;
+      line-height: 1.08; letter-spacing: -1.5px; color: var(--ink); margin: 0 0 14px; }
+    .hero p { font-size: 17px; color: var(--muted); margin: 0; max-width: 620px; }
+    .hero p b { color: var(--ink); font-weight: 600; }
+    .hint { margin-top: 20px; display: inline-flex; align-items: center; gap: 10px;
+      background: var(--surface-soft); border: 1px solid var(--hairline);
+      border-radius: var(--r-md); padding: 10px 14px; font-size: 13.5px; color: var(--body); }
+    .hint code { font-family: var(--font-mono); font-size: 12.5px; background: var(--surface-card);
+      padding: 2px 6px; border-radius: var(--r-sm); color: var(--ink); }
+
+    .card { background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-lg);
+      padding: 22px; box-shadow: var(--shadow-sm); margin-top: 24px; }
+    .label { font-size: 12px; font-weight: 600; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--muted-soft); margin-bottom: 14px; }
+
+    /* Scenarios */
+    .scenarios { display: flex; gap: 10px; flex-wrap: wrap; }
+    .scenario { flex: 1; min-width: 220px; text-align: left; cursor: pointer;
+      background: var(--surface-card); border: 1px solid transparent; border-radius: var(--r-lg);
+      padding: 16px 18px; transition: border-color .12s, background .12s; font-family: var(--font-body); }
+    .scenario:hover { border-color: var(--ink); background: var(--surface-soft); }
+    .scenario .t { font-weight: 600; font-size: 14px; color: var(--ink); display: flex; gap: 8px; align-items: center; }
+    .scenario .d { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+    .scenario .d code { font-family: var(--font-mono); font-size: 11.5px; }
+
+    /* Catalog */
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .prod { border: 1px solid var(--hairline); border-radius: var(--r-lg); padding: 18px; }
+    .prod .name { font-family: var(--font-display); font-weight: 600; font-size: 16px;
+      letter-spacing: -.2px; color: var(--ink); }
+    .prod .sku { font-family: var(--font-mono); font-size: 11px; color: var(--muted-soft); margin-top: 1px; }
+    .prod .meta { display: flex; justify-content: space-between; align-items: baseline; margin: 12px 0; }
+    .prod .price { font-weight: 600; font-size: 15px; color: var(--ink); }
+    .prod .stock { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); border-radius: var(--r-sm); padding: 1px 6px; }
+    .prod .stock b { color: var(--ink); font-weight: 600; }
+    .prod .stock.flash { animation: flash 1.2s ease-out; }
+    @keyframes flash { 0% { background: #fde68a; } 100% { background: transparent; } }
+    .prod .row { display: flex; gap: 8px; }
+    input[type="number"] {
+      font-family: var(--font-mono); font-size: 14px; color: var(--ink); width: 64px;
+      height: 36px; padding: 0 10px; border: 1px solid var(--hairline);
+      border-radius: var(--r-md); background: var(--canvas);
+    }
+    input[type="number"]:focus { outline: none; border-color: var(--ink); }
+    .btn {
+      font-family: var(--font-body); font-size: 14px; font-weight: 600; cursor: pointer;
+      height: 40px; padding: 0 20px; border: 0; border-radius: var(--r-md);
+      background: var(--primary); color: #fff; transition: background .12s; white-space: nowrap;
+    }
+    .btn:hover { background: var(--primary-active); }
+    .btn:active { transform: translateY(.5px); }
+    .btn:disabled { background: var(--hairline); color: var(--muted); cursor: not-allowed; }
+    .btn.ghost { background: var(--canvas); color: var(--ink); border: 1px solid var(--hairline); }
+    .btn.ghost:hover { background: var(--surface-soft); }
+    .btn.sm { height: 36px; padding: 0 14px; font-size: 13px; }
+
+    /* Cart */
+    .cart-lines { font-family: var(--font-mono); font-size: 13px; }
+    .cart-lines .line { display: flex; justify-content: space-between; padding: 6px 0;
+      border-bottom: 1px solid var(--hairline-soft); }
+    .cart-lines .line:last-child { border-bottom: 0; }
+    .cart-lines .total { font-weight: 600; color: var(--ink); border-top: 1px solid var(--hairline);
+      margin-top: 4px; padding-top: 10px; }
+    .cart-empty { color: var(--muted-soft); font-family: var(--font-mono); font-size: 13px; padding: 8px 0; }
+    .cart-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .over-limit { display: none; margin-top: 10px; font-size: 12.5px; color: var(--body);
+      background: #fef3c7; border: 1px solid #fde68a; border-radius: var(--r-md); padding: 8px 12px; }
+    .over-limit.show { display: block; }
+
+    /* Saga stepper */
+    .result-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .status-badge { font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+      padding: 5px 14px; border-radius: var(--r-pill); }
+    .status-badge.ok { background: #d1fae5; color: #065f46; }
+    .status-badge.bad { background: #fee2e2; color: #991b1b; }
+    .status-badge.replay { background: var(--surface-card); color: var(--ink); }
+    .result-total { font-family: var(--font-display); font-weight: 600; font-size: 22px;
+      letter-spacing: -.4px; color: var(--ink); }
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 18px; }
+    .step { border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 12px 14px; position: relative; }
+    .step .n { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-soft);
+      text-transform: uppercase; letter-spacing: .05em; }
+    .step .s { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 3px;
+      display: flex; align-items: center; gap: 6px; }
+    .step .ic { width: 16px; height: 16px; border-radius: 50%; display: inline-grid;
+      place-items: center; font-size: 10px; color: #fff; flex: none; }
+    .step.ok .ic { background: var(--success); }
+    .step.fail .ic { background: var(--error); }
+    .step.skip { opacity: .45; }
+    .step.skip .ic { background: var(--muted-soft); }
+    .step .note { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+    .comp-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px;
+      font-size: 12.5px; font-weight: 500; color: var(--ink);
+      background: var(--surface-card); border-radius: var(--r-pill); padding: 5px 14px; }
+    .detail { margin-top: 16px; font-family: var(--font-mono); font-size: 12px; color: var(--muted);
+      display: grid; gap: 3px; }
+    .detail b { color: var(--ink); font-weight: 500; }
+
+    /* Event pipeline console (the page's one dark surface) */
+    .console { background: var(--dark); border-radius: var(--r-xl); overflow: hidden;
+      box-shadow: var(--shadow-md); margin-top: 24px; }
+    .console-head { display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,.07); }
+    .console-head .t { display: flex; align-items: center; gap: 10px; color: var(--on-dark);
+      font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: -.2px; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #3f3f46; }
+    .live-dot.on { background: var(--success); animation: pulse 1.6s ease-in-out infinite; }
+    .live-dot.err { background: var(--warning); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+    .console-meta { font-family: var(--font-mono); font-size: 12.5px; color: var(--on-dark-soft); }
+    .pipe { display: flex; align-items: center; gap: 0; padding: 22px 20px; overflow-x: auto; }
+    .pnode { flex: none; text-align: center; min-width: 120px; }
+    .pnode .box { display: inline-block; font-family: var(--font-mono); font-size: 11.5px;
+      color: var(--on-dark); background: var(--dark-elevated); border: 1px solid #27272a;
+      border-radius: var(--r-md); padding: 8px 12px; }
+    .pnode .cap { font-size: 10.5px; color: #71717a; margin-top: 6px; font-family: var(--font-mono); }
+    .parrow { flex: 1 0 34px; height: 1px; background: #3f3f46; position: relative; min-width: 34px; }
+    .parrow::after { content: ''; position: absolute; right: 0; top: -3px;
+      border: 3.5px solid transparent; border-left-color: #3f3f46; }
+    .pipe.done .pnode .box { border-color: rgba(16,185,129,.5); }
+    .pipe.done .parrow, .pipe.done .parrow::after { background: var(--success); border-left-color: var(--success); }
+    .console-out { padding: 0 20px 20px; font-family: var(--font-mono); font-size: 12.5px;
+      color: var(--on-dark-soft); line-height: 1.7; }
+    .console-out .ok { color: var(--emerald); }
+    .console-out .warn { color: var(--warning); }
+
+    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--hairline-soft);
+      display: flex; justify-content: space-between; font-size: 13px; color: var(--muted-soft); }
+    footer a { color: var(--muted); text-decoration: none; font-weight: 500; }
+    footer a:hover { color: var(--ink); text-decoration: underline; }
+
+    @media (max-width: 720px) {
+      .hero h1 { font-size: 34px; }
+      .wrap { padding: 32px 18px 64px; }
+      .grid { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>order-payment</h1>
-  <p class="sub">분산 트랜잭션을 <b>Saga + 보상</b>으로. 주문 → 원자적 재고차감 → 결제 → 확정. 재고 부족이면 보상 트랜잭션으로 롤백(오버셀 0). <b>멱등성 키</b>로 중복 주문 방지.</p>
+  <header class="appbar">
+    <div class="wordmark"><span class="mark"></span> Order &amp; Payment</div>
+    <div class="backend-badge"><span class="dot" id="be-dot"></span><span id="be-name">loading catalog…</span></div>
+  </header>
 
-  <div class="grid" id="products"></div>
+  <main class="wrap">
+    <section class="hero">
+      <h1>Lose no money,<br />charge no one twice.</h1>
+      <p>Placing an order runs a <b>saga</b>: reserve stock → authorize payment → confirm.
+         Any step that fails triggers a <b>compensating action</b> instead of a rollback — because the
+         payment call is external and can't be rolled back. <b>Idempotency keys</b> absorb retries, an
+         atomic conditional decrement blocks oversell, and every outcome is published through a
+         <b>transactional outbox</b> to Kafka.</p>
+      <div class="hint">Stock numbers below are live from Postgres — watch them move as sagas
+        reserve, and <code>compensate</code> puts them back.</div>
+    </section>
 
-  <div class="cart">
-    <div style="font-weight:600;margin-bottom:8px">주문 라인</div>
-    <div id="cart-lines"><div class="empty">상품의 "추가"를 눌러 담으세요.</div></div>
-  </div>
+    <section class="card">
+      <div class="label">Scenarios</div>
+      <div class="scenarios">
+        <button class="scenario" onclick="stage('happy')">
+          <div class="t">✓&nbsp; Happy path</div>
+          <div class="d">Mouse × 2 — every step succeeds, order <code>CONFIRMED</code>, event reaches the consumer.</div>
+        </button>
+        <button class="scenario" onclick="stage('oversell')">
+          <div class="t">⛔&nbsp; Oversell guard</div>
+          <div class="d">Standing Desk × (stock + 1) — the atomic <code>stock >= qty</code> decrement refuses; nothing to compensate.</div>
+        </button>
+        <button class="scenario" onclick="stage('declined')">
+          <div class="t">↩&nbsp; Payment declined</div>
+          <div class="d">Laptop × 4 = ₩600,000 &gt; PG limit ₩500,000 — reserved stock is <code>released</code> by compensation.</div>
+        </button>
+      </div>
+    </section>
 
-  <div class="actions">
-    <button class="place" onclick="placeOrder(false)">주문하기 (Saga 실행)</button>
-    <button class="idem" onclick="placeOrder(true)">같은 멱등키로 재전송</button>
-  </div>
-  <div class="hint">💡 재고보다 많이 담아 주문하면 <b>보상 트랜잭션</b>으로 FAILED(오버셀 방지). "같은 멱등키 재전송"은 중복이 아니라 <b>같은 주문</b>이 반환됩니다.</div>
+    <section class="card">
+      <div class="label">Catalog — live stock</div>
+      <div class="grid" id="products"><div class="cart-empty">// loading products…</div></div>
+    </section>
 
-  <div id="result"></div>
+    <section class="card">
+      <div class="label">Order lines</div>
+      <div class="cart-lines" id="cart"><div class="cart-empty">// stage a scenario above, or add products manually</div></div>
+      <div class="over-limit" id="over-limit">⚠ total exceeds the simulated PG's ₩500,000 authorization
+        limit — this order will be declined and compensated.</div>
+      <div class="cart-actions">
+        <button class="btn" id="place" onclick="placeOrder(false)">Place order — run the saga</button>
+        <button class="btn ghost" id="replay" onclick="placeOrder(true)" disabled>Replay same Idempotency-Key</button>
+        <button class="btn ghost sm" onclick="clearCart()" style="margin-left:auto">Clear</button>
+      </div>
+    </section>
 
-  <p style="margin-top:24px"><a href="https://github.com/jinwovo" target="_blank">↗ GitHub</a></p>
-</div>
+    <section id="result"></section>
+    <section id="pipeline"></section>
 
-<script>
-const PRODUCTS = [
-  { sku:'SKU-LAPTOP', name:'Laptop',        priceCents:150000, stock:10 },
-  { sku:'SKU-MOUSE',  name:'Mouse',           priceCents:2500,  stock:100 },
-  { sku:'SKU-DESK',   name:'Standing Desk',  priceCents:45000,  stock:5 },
-];
-const won = c => '₩' + (c).toLocaleString();
-const cart = {}; // sku -> qty
-let lastKey = null;
+    <footer>
+      <span>order-payment — saga · idempotency · transactional outbox</span>
+      <a href="https://github.com/jinwovo/order-payment" target="_blank">↗ github.com/jinwovo/order-payment</a>
+    </footer>
+  </main>
 
-document.getElementById('products').innerHTML = PRODUCTS.map(p => `
-  <div class="prod">
-    <h3>${p.name}</h3>
-    <div class="meta">${won(p.priceCents)} · 재고 <span class="stock">${p.stock}</span> · <span class="mono">${p.sku}</span></div>
-    <div class="qty">
-      <input id="q-${p.sku}" type="number" min="1" value="1" />
-      <button class="add" onclick="addLine('${p.sku}')">추가</button>
-    </div>
-  </div>`).join('');
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const won = (c) => '₩' + Number(c).toLocaleString();
+    const PG_LIMIT = 500000; // payment.decline-above-cents default — display hint only, server decides
 
-function addLine(sku){
-  const q = Math.max(1, parseInt(document.getElementById('q-'+sku).value || '1', 10));
-  cart[sku] = (cart[sku] || 0) + q;
-  renderCart();
-}
-function renderCart(){
-  const keys = Object.keys(cart);
-  const el = document.getElementById('cart-lines');
-  if(!keys.length){ el.innerHTML = '<div class="empty">상품의 "추가"를 눌러 담으세요.</div>'; return; }
-  el.innerHTML = keys.map(sku => {
-    const p = PRODUCTS.find(x=>x.sku===sku);
-    return `<div class="row"><span>${p.name} × ${cart[sku]}</span><span>${won(p.priceCents*cart[sku])}</span></div>`;
-  }).join('');
-}
+    let products = [];            // live catalog
+    let prevStock = {};           // sku -> last seen stock (for flash)
+    const cart = {};              // sku -> qty
+    let lastKey = null, lastOrderId = null;
+    let pollGen = 0;              // cancels stale fulfillment polls
 
-async function placeOrder(reuseKey){
-  const lines = Object.entries(cart).map(([sku,quantity]) => ({sku, quantity}));
-  if(!lines.length){ showResult({error:'주문 라인이 비어 있습니다.'}); return; }
-  const key = (reuseKey && lastKey) ? lastKey : crypto.randomUUID();
-  lastKey = key;
-  showResult({loading:true});
-  try {
-    const res = await fetch('/orders', {
-      method:'POST',
-      headers:{'Content-Type':'application/json','Idempotency-Key':key},
-      body: JSON.stringify({lines})
-    });
-    const data = await res.json().catch(()=>({error:'응답 파싱 실패 ('+res.status+')'}));
-    if(!res.ok && !data.status){ data.error = data.error || data.message || ('HTTP '+res.status); }
-    showResult({data, key, reuseKey});
-  } catch(e){ showResult({error:String(e)}); }
-}
+    async function api(path, opts) {
+      const r = await fetch(path, opts);
+      const body = await r.json().catch(() => null);
+      if (!r.ok && !(body && body.status)) throw new Error((body && (body.error || body.message)) || path + ' → ' + r.status);
+      return body;
+    }
 
-function showResult(s){
-  const el = document.getElementById('result');
-  if(s.loading){ el.innerHTML = '<div class="result mono">Saga 실행 중…</div>'; return; }
-  if(s.error){ el.innerHTML = `<div class="result"><span class="badge b-bad">오류</span><div>${s.error}</div></div>`; return; }
-  const d = s.data;
-  const ok = d.status === 'CONFIRMED';
-  el.innerHTML = `<div class="result">
-    <span class="badge ${ok?'b-ok':'b-bad'}">${d.status || 'UNKNOWN'}${ok?' ✓':' ✗'}</span>
-    ${s.reuseKey ? '<span class="mono"> · 같은 멱등키 재전송 → 동일 주문 반환</span>' : ''}
-    <div style="margin:6px 0">${ok ? ('합계 '+won(d.totalCents)) : ('보상됨 — '+(d.failureReason||'재고 부족'))}</div>
-    <div class="mono">order=${d.id||'-'}</div>
-    <div class="mono">idempotency-key=${s.key}</div>
-    ${(d.items||[]).map(i=>`<div class="mono">· ${i.sku} × ${i.quantity}</div>`).join('')}
-  </div>`;
-}
-</script>
+    async function loadCatalog(flash) {
+      try {
+        products = await api('/products');
+        $('be-name').textContent = 'postgres · live';
+        $('be-dot').className = 'dot ok';
+        $('products').innerHTML = products.map((p) => `
+          <div class="prod">
+            <div class="name">${esc(p.name)}</div>
+            <div class="sku">${esc(p.sku)}</div>
+            <div class="meta">
+              <span class="price">${won(p.priceCents)}</span>
+              <span class="stock ${flash && prevStock[p.sku] !== undefined && prevStock[p.sku] !== p.stock ? 'flash' : ''}"
+                >stock <b>${p.stock}</b></span>
+            </div>
+            <div class="row">
+              <input id="q-${esc(p.sku)}" type="number" min="1" value="1" />
+              <button class="btn ghost sm" onclick="addLine('${esc(p.sku)}')">+ Add</button>
+            </div>
+          </div>`).join('');
+        for (const p of products) prevStock[p.sku] = p.stock;
+      } catch (e) {
+        $('be-name').textContent = 'backend unreachable';
+        $('be-dot').className = 'dot bad';
+        $('products').innerHTML = `<div class="cart-empty">// catalog failed: ${esc(e.message)} — is the app running on :8090?</div>`;
+      }
+    }
+
+    function stage(kind) {
+      for (const k of Object.keys(cart)) delete cart[k];
+      const desk = products.find((p) => p.sku === 'SKU-DESK');
+      if (kind === 'happy') cart['SKU-MOUSE'] = 2;
+      if (kind === 'oversell') cart['SKU-DESK'] = (desk ? desk.stock : 5) + 1;
+      if (kind === 'declined') cart['SKU-LAPTOP'] = 4;
+      renderCart();
+      $('place').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function addLine(sku) {
+      const q = Math.max(1, parseInt($('q-' + sku).value || '1', 10));
+      cart[sku] = (cart[sku] || 0) + q;
+      renderCart();
+    }
+    function clearCart() {
+      for (const k of Object.keys(cart)) delete cart[k];
+      renderCart();
+    }
+
+    function cartTotal() {
+      return Object.entries(cart).reduce((sum, [sku, qty]) => {
+        const p = products.find((x) => x.sku === sku);
+        return sum + (p ? p.priceCents * qty : 0);
+      }, 0);
+    }
+
+    function renderCart() {
+      const keys = Object.keys(cart);
+      if (!keys.length) {
+        $('cart').innerHTML = '<div class="cart-empty">// stage a scenario above, or add products manually</div>';
+        $('over-limit').className = 'over-limit';
+        return;
+      }
+      const lines = keys.map((sku) => {
+        const p = products.find((x) => x.sku === sku) || { name: sku, priceCents: 0 };
+        return `<div class="line"><span>${esc(p.name)} × ${cart[sku]}</span><span>${won(p.priceCents * cart[sku])}</span></div>`;
+      }).join('');
+      $('cart').innerHTML = lines +
+        `<div class="line total"><span>total</span><span>${won(cartTotal())}</span></div>`;
+      $('over-limit').className = 'over-limit' + (cartTotal() > PG_LIMIT ? ' show' : '');
+    }
+
+    async function placeOrder(reuseKey) {
+      const lines = Object.entries(cart).map(([sku, quantity]) => ({ sku, quantity }));
+      if (!lines.length) { stage('happy'); return; }
+      const key = (reuseKey && lastKey) ? lastKey : crypto.randomUUID();
+      lastKey = key;
+      $('place').disabled = $('replay').disabled = true;
+      try {
+        const order = await api('/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+          body: JSON.stringify({ lines }),
+        });
+        const replayed = reuseKey && order.id === lastOrderId;
+        lastOrderId = order.id;
+        renderResult(order, key, replayed);
+        loadCatalog(true);                 // stock moved (or provably didn't) — refetch
+        pollFulfillment(order.id, replayed);
+      } catch (e) {
+        $('result').innerHTML = `<div class="card"><div class="result-head">
+          <span class="status-badge bad">ERROR</span><span>${esc(e.message)}</span></div></div>`;
+        $('pipeline').innerHTML = '';
+      } finally {
+        $('place').disabled = false;
+        $('replay').disabled = !lastKey;
+      }
+    }
+
+    function step(n, title, state, note) {
+      const icon = state === 'ok' ? '✓' : state === 'fail' ? '✕' : '·';
+      return `<div class="step ${state}">
+        <div class="n">step ${n}</div>
+        <div class="s"><span class="ic">${icon}</span> ${title}</div>
+        <div class="note">${note}</div>
+      </div>`;
+    }
+
+    function renderResult(o, key, replayed) {
+      const ok = o.status === 'CONFIRMED';
+      const reason = o.failureReason || '';
+      const oos = reason.startsWith('OUT_OF_STOCK');
+      const declined = reason.startsWith('PAYMENT_DECLINED');
+
+      let steps;
+      if (replayed) {
+        steps =
+          step(0, 'Idempotency', 'ok', 'key already claimed — prior order returned') +
+          step(1, 'Reserve stock', 'skip', 'not re-run — no double effects') +
+          step(2, 'Authorize payment', 'skip', 'not re-run — no double charge') +
+          step(3, 'Record + outbox', 'skip', 'nothing new to record');
+      } else {
+        steps =
+          step(0, 'Idempotency', 'ok', 'key claimed before any work') +
+          step(1, 'Reserve stock', oos ? 'fail' : 'ok',
+            oos ? 'atomic decrement refused — stock &lt; qty (all-or-nothing)' : 'atomic <code>stock >= qty</code> decrement') +
+          step(2, 'Authorize payment', oos ? 'skip' : declined ? 'fail' : 'ok',
+            oos ? 'never reached' : declined ? esc(reason.replace('PAYMENT_DECLINED: ', '')) : 'simulated PG approved') +
+          step(3, 'Record + outbox', 'ok',
+            ok ? 'CONFIRMED + OrderConfirmed event, one transaction' : 'REJECTED + OrderRejected event, one transaction');
+      }
+
+      $('result').innerHTML = `<div class="card">
+        <div class="result-head">
+          <span class="status-badge ${replayed ? 'replay' : ok ? 'ok' : 'bad'}">${replayed ? '↺ REPLAYED · ' + esc(o.status) : esc(o.status)}</span>
+          <span class="result-total">${won(o.totalCents)}</span>
+          ${replayed ? '<span style="font-size:13px;color:var(--muted)">same key → same order, zero new side effects</span>' : ''}
+        </div>
+        <div class="steps">${steps}</div>
+        ${declined && !replayed ? '<span class="comp-chip">↩ compensation — reserved stock released back to the shelf</span>' : ''}
+        <div class="detail">
+          <span>order <b>${esc(o.id)}</b></span>
+          <span>idempotency-key <b>${esc(key)}</b></span>
+          ${(o.items || []).map((i) => `<span>· ${esc(i.sku)} × ${i.quantity} @ ${won(i.unitPriceCents)}</span>`).join('')}
+        </div>
+      </div>`;
+    }
+
+    async function pollFulfillment(orderId, replayed) {
+      const gen = ++pollGen;
+      const started = performance.now();
+      const nodes = `
+        <div class="pnode"><div class="box">outbox_event</div><div class="cap">same tx as order</div></div>
+        <div class="parrow"></div>
+        <div class="pnode"><div class="box">relay</div><div class="cap">poll → publish</div></div>
+        <div class="parrow"></div>
+        <div class="pnode"><div class="box">kafka · order-events</div><div class="cap">at-least-once</div></div>
+        <div class="parrow"></div>
+        <div class="pnode"><div class="box">idempotent consumer</div><div class="cap">event-id dedup</div></div>
+        <div class="parrow"></div>
+        <div class="pnode"><div class="box">order_projection</div><div class="cap">read model</div></div>`;
+      $('pipeline').innerHTML = `<div class="console">
+        <div class="console-head">
+          <div class="t"><span class="live-dot on" id="pl-dot"></span> Event pipeline</div>
+          <div class="console-meta" id="pl-meta">waiting for the consumer…</div>
+        </div>
+        <div class="pipe" id="pl-pipe">${nodes}</div>
+        <div class="console-out" id="pl-out">// polling GET /orders/${esc(orderId)}/fulfillment</div>
+      </div>`;
+
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 300));
+        if (gen !== pollGen) return;                       // a newer order took over
+        const r = await fetch(`/orders/${orderId}/fulfillment`);
+        if (r.ok) {
+          const p = await r.json();
+          const ms = Math.round(performance.now() - started);
+          $('pl-dot').className = 'live-dot';
+          $('pl-pipe').className = 'pipe done';
+          $('pl-meta').textContent = 'projected in ' + ms + ' ms';
+          $('pl-out').innerHTML =
+            `<span class="ok">✓ consumer projected the order</span> — status=${esc(p.status)} · amount=${won(p.amountCents)} · ${esc(p.updatedAt)}` +
+            (replayed ? '<br />// replay note: the event was published once for the original request — the idempotent consumer saw nothing new' : '');
+          return;
+        }
+      }
+      if (gen !== pollGen) return;
+      $('pl-dot').className = 'live-dot err';
+      $('pl-meta').textContent = 'no projection after 12 s';
+      $('pl-out').innerHTML = '<span class="warn">⚠ event not consumed yet — is Kafka running? (docker compose up)</span>';
+    }
+
+    loadCatalog(false);
+  </script>
 </body>
 </html>
