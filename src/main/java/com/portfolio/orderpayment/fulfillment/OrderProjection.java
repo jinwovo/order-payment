@@ -28,13 +28,18 @@ public class OrderProjection {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /** Trace id of the request that placed the order — proof the trace survived the async hop. */
+    @Column(name = "trace_id")
+    private String traceId;
+
     protected OrderProjection() {
     }
 
-    public OrderProjection(UUID orderId, String status, long amountCents) {
+    public OrderProjection(UUID orderId, String status, long amountCents, String traceId) {
         this.orderId = orderId;
         this.status = status;
         this.amountCents = amountCents;
+        this.traceId = traceId;
         this.updatedAt = Instant.now();
     }
 }

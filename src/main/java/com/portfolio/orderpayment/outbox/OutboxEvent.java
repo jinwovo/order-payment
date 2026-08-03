@@ -37,14 +37,21 @@ public class OutboxEvent {
     @Column(name = "published_at")
     private Instant publishedAt;
 
+    /** W3C traceparent of the request that produced this event — restored on the Kafka record so
+     *  the consumer joins the same trace across the async hop (ADR-0006). */
+    @Column(name = "trace_parent")
+    private String traceParent;
+
     protected OutboxEvent() {
     }
 
-    public OutboxEvent(String aggregateType, String aggregateId, String type, String payload) {
+    public OutboxEvent(String aggregateType, String aggregateId, String type, String payload,
+                       String traceParent) {
         this.aggregateType = aggregateType;
         this.aggregateId = aggregateId;
         this.type = type;
         this.payload = payload;
+        this.traceParent = traceParent;
         this.createdAt = Instant.now();
     }
 

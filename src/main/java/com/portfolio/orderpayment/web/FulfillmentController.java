@@ -31,10 +31,12 @@ public class FulfillmentController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    public record FulfillmentResponse(UUID orderId, String status, long amountCents, Instant updatedAt) {
+    public record FulfillmentResponse(UUID orderId, String status, long amountCents, Instant updatedAt,
+                                      String traceId) {
 
         static FulfillmentResponse from(OrderProjection p) {
-            return new FulfillmentResponse(p.getOrderId(), p.getStatus(), p.getAmountCents(), p.getUpdatedAt());
+            return new FulfillmentResponse(p.getOrderId(), p.getStatus(), p.getAmountCents(),
+                    p.getUpdatedAt(), p.getTraceId());
         }
     }
 }

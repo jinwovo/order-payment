@@ -25,6 +25,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-kafka'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	// Boot 4 splits tracing/zipkin auto-configuration into dedicated modules — the micrometer
+	// bridge alone provides no Tracer bean.
+	implementation 'org.springframework.boot:spring-boot-micrometer-tracing-brave'
+	implementation 'org.springframework.boot:spring-boot-starter-zipkin'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	runtimeOnly 'org.postgresql:postgresql'
