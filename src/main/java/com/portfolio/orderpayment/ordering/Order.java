@@ -33,6 +33,10 @@ public class Order {
     @Column(name = "failure_reason")
     private String failureReason;
 
+    /** How many PSP attempts the authorization took — >1 means the retry layer earned its keep. */
+    @Column(name = "payment_attempts", nullable = false)
+    private int paymentAttempts;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -58,8 +62,9 @@ public class Order {
         items.add(item);
     }
 
-    public void confirm() {
+    public void confirm(int paymentAttempts) {
         this.status = OrderStatus.CONFIRMED;
+        this.paymentAttempts = paymentAttempts;
         this.updatedAt = Instant.now();
     }
 

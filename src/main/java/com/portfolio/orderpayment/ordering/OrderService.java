@@ -1,5 +1,6 @@
 package com.portfolio.orderpayment.ordering;
 
+import com.portfolio.orderpayment.chaos.ChaosContext;
 import com.portfolio.orderpayment.outbox.OutboxAppender;
 import com.portfolio.orderpayment.payment.Payment;
 import com.portfolio.orderpayment.payment.PaymentRepository;
@@ -32,10 +33,15 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse confirm(UUID orderId, String pspRef, long amountCents) {
+    public OrderResponse confirm(UUID orderId, String pspRef, long amountCents, int paymentAttempts) {
+        if (ChaosContext.consumeConfirmCrash()) {
+            // Injected before any write so the transaction has nothing to roll back — the point is
+            // that the PSP authorization OUTSIDE this tx now needs compensating (void), not undoing.
+            throw new IllegalStateException("simulated crash before confirm commit");
+        }
         Order order = orders.findById(orderId).orElseThrow(() -> new OrderNotFoundException(orderId));
         payments.save(new Payment(orderId, amountCents, PaymentStatus.CAPTURED, pspRef));
-        order.confirm();
+        order.confirm(paymentAttempts);
         outbox.append("ORDER", orderId.toString(), "OrderConfirmed", new OrderEvent(orderId, "CONFIRMED", amountCents));
         return OrderResponse.from(order);
     }

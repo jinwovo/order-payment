@@ -22,13 +22,31 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      # Consumer spans join the trace carried by the record's traceparent header (ADR-0006).
+      observation-enabled: true
 
 server:
   port: ${SERVER_PORT:8090}
+  # In-flight requests (and the current outbox relay batch) drain before the JVM exits.
+  shutdown: graceful
+
+spring.lifecycle.timeout-per-shutdown-phase: 20s
 
 payment:
   # Simulated PSP declines orders above this amount (cents) — used to exercise the compensation path.
   decline-above-cents: ${PAYMENT_DECLINE_ABOVE:500000}
+  # Hybrid recovery (ADR-0004): transient PSP failures get bounded retries with full-jitter backoff
+  # before the saga gives up and compensates. Declines are never retried.
+  retry:
+    max-attempts: 3
+    base-backoff-ms: 100
+    max-backoff-ms: 1000
+
+chaos:
+  # Explicit fault injection via the X-Chaos header (payment-transient:N | payment-down |
+  # confirm-crash | poison-event). Demo/test surface — turn off outside local runs.
+  enabled: ${CHAOS_ENABLED:true}
 
 outbox:
   relay-interval-ms: 1000
@@ -42,6 +60,12 @@ management:
   endpoint:
     health:
       show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
 
 logging:
   level:

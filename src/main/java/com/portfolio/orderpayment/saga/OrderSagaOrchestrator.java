@@ -10,6 +10,8 @@ import com.portfolio.orderpayment.ordering.OrderItem;
 import com.portfolio.orderpayment.ordering.OrderResponse;
 import com.portfolio.orderpayment.ordering.OrderService;
 import com.portfolio.orderpayment.payment.PaymentGateway;
+import com.portfolio.orderpayment.payment.PaymentUnavailableException;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,6 +28,11 @@ import java.util.stream.Collectors;
  * reverse on failure. The orchestrator itself is NOT transactional — each step commits in its own
  * transaction (via separate beans) so that an external payment call sits between committed steps,
  * which is exactly what makes compensation (rather than rollback) necessary.
+ *
+ * <p>Recovery is hybrid (ADR-0004): <em>transient</em> payment failures are retried with backoff
+ * and jitter (inside the gateway decorator) and only an exhausted retry budget compensates;
+ * a failure <em>after</em> a successful authorization compensates both ways — void the
+ * authorization and release the stock.
  */
 @Slf4j
 @Service
@@ -37,12 +44,13 @@ public class OrderSagaOrchestrator {
     private final InventoryService inventory;
     private final PaymentGateway paymentGateway;
     private final OrderService orderService;
+    private final MeterRegistry metrics;
 
     public OrderResponse place(String idempotencyKey, List<OrderLine> lines) {
         // 0. Idempotent replay: a retried request returns the original order, no new effects.
         var prior = idempotency.findOrderId(idempotencyKey);
         if (prior.isPresent()) {
-            return orderService.view(prior.get());
+            return outcome("replayed", orderService.view(prior.get()));
         }
 
         // 1. Resolve products, build line items, compute the total.
@@ -67,7 +75,7 @@ public class OrderSagaOrchestrator {
         try {
             idempotency.claim(idempotencyKey, orderId);
         } catch (DataIntegrityViolationException duplicate) {
-            return orderService.view(idempotency.findOrderId(idempotencyKey).orElseThrow());
+            return outcome("replayed", orderService.view(idempotency.findOrderId(idempotencyKey).orElseThrow()));
         }
         orderService.create(orderId, total, items);
 
@@ -76,18 +84,44 @@ public class OrderSagaOrchestrator {
             inventory.reserve(items);
         } catch (OutOfStockException e) {
             log.info("order {} rejected: out of stock {}", orderId, e.getSku());
-            return orderService.reject(orderId, "OUT_OF_STOCK: " + e.getSku());
+            return outcome("rejected_out_of_stock", orderService.reject(orderId, "OUT_OF_STOCK: " + e.getSku()));
         }
 
-        // 4. Saga step 2 — authorize payment (external). On decline, compensate the reservation.
-        PaymentGateway.PaymentResult auth = paymentGateway.authorize(orderId, total);
+        // 4. Saga step 2 — authorize payment (external). Transient outages were already retried
+        //    inside the gateway; reaching the catch means the budget is spent → compensate.
+        PaymentGateway.PaymentResult auth;
+        try {
+            auth = paymentGateway.authorize(orderId, total);
+        } catch (PaymentUnavailableException e) {
+            inventory.release(items);
+            log.warn("order {} rejected: payment unavailable ({})", orderId, e.getMessage());
+            return outcome("rejected_payment_unavailable",
+                    orderService.reject(orderId, "PAYMENT_UNAVAILABLE: " + e.getMessage()));
+        }
         if (!auth.approved()) {
             inventory.release(items);
             log.info("order {} rejected: payment declined", orderId);
-            return orderService.reject(orderId, "PAYMENT_DECLINED: " + auth.declineReason());
+            return outcome("rejected_payment_declined",
+                    orderService.reject(orderId, "PAYMENT_DECLINED: " + auth.declineReason()));
         }
 
         // 5. Saga step 3 — confirm (capture payment + confirm order + emit event, atomically).
-        return orderService.confirm(orderId, auth.pspRef(), total);
+        //    Money has been authorized by now, so a failure here compensates BOTH ways: void the
+        //    authorization at the PSP and put the stock back.
+        try {
+            return outcome("confirmed", orderService.confirm(orderId, auth.pspRef(), total, auth.attempts()));
+        } catch (RuntimeException e) {
+            paymentGateway.voidAuthorization(auth.pspRef());
+            inventory.release(items);
+            log.warn("order {} rejected: confirm failed after authorization ({}) — voided + released",
+                    orderId, e.getMessage());
+            return outcome("rejected_confirm_failed",
+                    orderService.reject(orderId, "CONFIRM_FAILED: " + e.getMessage()));
+        }
+    }
+
+    private OrderResponse outcome(String result, OrderResponse response) {
+        metrics.counter("orders.saga.outcome", "result", result).increment();
+        return response;
     }
 }

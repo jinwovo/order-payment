@@ -1,11 +1,13 @@
 package com.portfolio.orderpayment.web;
 
+import com.portfolio.orderpayment.chaos.ChaosContext;
 import com.portfolio.orderpayment.ordering.OrderResponse;
 import com.portfolio.orderpayment.ordering.OrderService;
 import com.portfolio.orderpayment.saga.OrderLine;
 import com.portfolio.orderpayment.saga.OrderSagaOrchestrator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,13 +27,25 @@ public class OrderController {
     private final OrderSagaOrchestrator orchestrator;
     private final OrderService orderService;
 
+    /** Fault injection is an explicit, documented API surface (ChaosContext) — off in production. */
+    @Value("${chaos.enabled:true}")
+    private boolean chaosEnabled;
+
     @PostMapping
     public OrderResponse place(@RequestHeader("Idempotency-Key") String idempotencyKey,
+                               @RequestHeader(name = "X-Chaos", required = false) String chaos,
                                @Valid @RequestBody PlaceOrderRequest request) {
         List<OrderLine> lines = request.lines().stream()
                 .map(line -> new OrderLine(line.sku(), line.quantity()))
                 .toList();
-        return orchestrator.place(idempotencyKey, lines);
+        if (chaosEnabled && chaos != null && !chaos.isBlank()) {
+            ChaosContext.open(chaos);
+        }
+        try {
+            return orchestrator.place(idempotencyKey, lines);
+        } finally {
+            ChaosContext.close();
+        }
     }
 
     @GetMapping("/{id}")

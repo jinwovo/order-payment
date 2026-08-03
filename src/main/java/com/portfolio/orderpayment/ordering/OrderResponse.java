@@ -8,6 +8,7 @@ public record OrderResponse(
         String status,
         long totalCents,
         String failureReason,
+        int paymentAttempts,
         List<Line> items
 ) {
     public record Line(String sku, int quantity, long unitPriceCents) {
@@ -18,6 +19,6 @@ public record OrderResponse(
                 .map(i -> new Line(i.getSku(), i.getQuantity(), i.getUnitPriceCents()))
                 .toList();
         return new OrderResponse(order.getId(), order.getStatus().name(), order.getTotalCents(),
-                order.getFailureReason(), lines);
+                order.getFailureReason(), order.getPaymentAttempts(), lines);
     }
 }
