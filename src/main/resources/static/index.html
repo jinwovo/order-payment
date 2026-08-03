@@ -42,7 +42,7 @@
       font-weight: 600; font-size: 17px; letter-spacing: -.4px; color: var(--ink); }
     .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--primary);
       display: grid; place-items: center; }
-    .mark::after { content: '₩'; color: #fff; font-size: 11px; font-weight: 700; font-family: var(--font-body); }
+    .mark::after { content: '$'; color: #fff; font-size: 11px; font-weight: 700; font-family: var(--font-body); }
     .backend-badge {
       display: inline-flex; align-items: center; gap: 8px;
       background: var(--surface-card); border-radius: var(--r-pill);
@@ -57,7 +57,7 @@
     .wrap { max-width: 940px; margin: 0 auto; padding: 48px 24px 80px; }
     .hero h1 { font-family: var(--font-display); font-weight: 600; font-size: 44px;
       line-height: 1.08; letter-spacing: -1.5px; color: var(--ink); margin: 0 0 14px; }
-    .hero p { font-size: 17px; color: var(--muted); margin: 0; max-width: 620px; }
+    .hero p { font-size: 17px; color: var(--muted); margin: 0; max-width: 640px; }
     .hero p b { color: var(--ink); font-weight: 600; }
     .hint { margin-top: 20px; display: inline-flex; align-items: center; gap: 10px;
       background: var(--surface-soft); border: 1px solid var(--hairline);
@@ -71,14 +71,16 @@
       text-transform: uppercase; color: var(--muted-soft); margin-bottom: 14px; }
 
     /* Scenarios */
-    .scenarios { display: flex; gap: 10px; flex-wrap: wrap; }
-    .scenario { flex: 1; min-width: 220px; text-align: left; cursor: pointer;
+    .scenarios { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .scenario { text-align: left; cursor: pointer;
       background: var(--surface-card); border: 1px solid transparent; border-radius: var(--r-lg);
-      padding: 16px 18px; transition: border-color .12s, background .12s; font-family: var(--font-body); }
+      padding: 14px 16px; transition: border-color .12s, background .12s; font-family: var(--font-body); }
     .scenario:hover { border-color: var(--ink); background: var(--surface-soft); }
-    .scenario .t { font-weight: 600; font-size: 14px; color: var(--ink); display: flex; gap: 8px; align-items: center; }
-    .scenario .d { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
-    .scenario .d code { font-family: var(--font-mono); font-size: 11.5px; }
+    .scenario .t { font-weight: 600; font-size: 13.5px; color: var(--ink); display: flex; gap: 7px; align-items: center; }
+    .scenario .d { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .scenario .d code { font-family: var(--font-mono); font-size: 11px; }
+    .scenario.chaos { background: #fffbeb; }
+    .scenario.chaos:hover { background: #fef3c7; border-color: var(--warning); }
 
     /* Catalog */
     .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
@@ -123,6 +125,11 @@
     .over-limit { display: none; margin-top: 10px; font-size: 12.5px; color: var(--body);
       background: #fef3c7; border: 1px solid #fde68a; border-radius: var(--r-md); padding: 8px 12px; }
     .over-limit.show { display: block; }
+    .chaos-note { display: none; margin-top: 10px; font-family: var(--font-mono); font-size: 12px;
+      color: var(--body); background: #fffbeb; border: 1px solid #fde68a;
+      border-radius: var(--r-md); padding: 8px 12px; }
+    .chaos-note.show { display: block; }
+    .chaos-note b { color: var(--ink); }
 
     /* Saga stepper */
     .result-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -146,12 +153,25 @@
     .step.skip { opacity: .45; }
     .step.skip .ic { background: var(--muted-soft); }
     .step .note { font-size: 11.5px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
-    .comp-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px;
+    .tries { font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px; }
+    .tries .x { color: var(--warning); }
+    .tries .v { color: var(--success); }
+    .comp-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; margin-right: 8px;
       font-size: 12.5px; font-weight: 500; color: var(--ink);
       background: var(--surface-card); border-radius: var(--r-pill); padding: 5px 14px; }
     .detail { margin-top: 16px; font-family: var(--font-mono); font-size: 12px; color: var(--muted);
       display: grid; gap: 3px; }
     .detail b { color: var(--ink); font-weight: 500; }
+
+    /* Dead letters */
+    .dlt-rows { font-family: var(--font-mono); font-size: 12px; }
+    .dlt-row { padding: 10px 0; border-bottom: 1px solid var(--hairline-soft); display: grid; gap: 3px; }
+    .dlt-row:last-child { border-bottom: 0; }
+    .dlt-row .r1 { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .dlt-pill { background: #fee2e2; color: #991b1b; font-weight: 600; font-size: 10.5px;
+      border-radius: var(--r-pill); padding: 2px 9px; }
+    .dlt-row .why { color: var(--muted); overflow-wrap: anywhere; }
+    .dlt-row .pl { color: var(--muted-soft); overflow-wrap: anywhere; }
 
     /* Event pipeline console (the page's one dark surface) */
     .console { background: var(--dark); border-radius: var(--r-xl); overflow: hidden;
@@ -170,16 +190,22 @@
     .pnode .box { display: inline-block; font-family: var(--font-mono); font-size: 11.5px;
       color: var(--on-dark); background: var(--dark-elevated); border: 1px solid #27272a;
       border-radius: var(--r-md); padding: 8px 12px; }
+    .pnode .box.dlt { border-color: rgba(245,158,11,.6); color: var(--warning); }
     .pnode .cap { font-size: 10.5px; color: #71717a; margin-top: 6px; font-family: var(--font-mono); }
     .parrow { flex: 1 0 34px; height: 1px; background: #3f3f46; position: relative; min-width: 34px; }
     .parrow::after { content: ''; position: absolute; right: 0; top: -3px;
       border: 3.5px solid transparent; border-left-color: #3f3f46; }
     .pipe.done .pnode .box { border-color: rgba(16,185,129,.5); }
     .pipe.done .parrow, .pipe.done .parrow::after { background: var(--success); border-left-color: var(--success); }
+    .pipe.dead .pnode .box { border-color: rgba(245,158,11,.5); }
+    .pipe.dead .parrow, .pipe.dead .parrow::after { background: var(--warning); border-left-color: var(--warning); }
     .console-out { padding: 0 20px 20px; font-family: var(--font-mono); font-size: 12.5px;
       color: var(--on-dark-soft); line-height: 1.7; }
     .console-out .ok { color: var(--emerald); }
     .console-out .warn { color: var(--warning); }
+    .console-out a { color: var(--on-dark); text-decoration: underline; }
+    .trace-chip { display: inline-block; background: var(--dark-elevated); border: 1px solid #27272a;
+      border-radius: var(--r-pill); padding: 2px 10px; color: var(--on-dark); }
 
     footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--hairline-soft);
       display: flex; justify-content: space-between; font-size: 13px; color: var(--muted-soft); }
@@ -189,7 +215,7 @@
     @media (max-width: 720px) {
       .hero h1 { font-size: 34px; }
       .wrap { padding: 32px 18px 64px; }
-      .grid { grid-template-columns: 1fr; }
+      .grid, .scenarios { grid-template-columns: 1fr; }
       .steps { grid-template-columns: 1fr 1fr; }
     }
   </style>
@@ -204,12 +230,14 @@
     <section class="hero">
       <h1>Lose no money,<br />charge no one twice.</h1>
       <p>Placing an order runs a <b>saga</b>: reserve stock → authorize payment → confirm.
-         Any step that fails triggers a <b>compensating action</b> instead of a rollback — because the
-         payment call is external and can't be rolled back. <b>Idempotency keys</b> absorb retries, an
-         atomic conditional decrement blocks oversell, and every outcome is published through a
-         <b>transactional outbox</b> to Kafka.</p>
-      <div class="hint">Stock numbers below are live from Postgres — watch them move as sagas
-        reserve, and <code>compensate</code> puts them back.</div>
+         Transient payment failures are <b>retried with backoff + jitter</b>; only an exhausted retry
+         budget — or a failure <em>after</em> the money moved — triggers <b>compensation</b> (release
+         the stock, void the authorization). <b>Idempotency keys</b> absorb request retries, an atomic
+         conditional decrement blocks oversell, every outcome travels a <b>transactional outbox</b> to
+         Kafka, poison events park on a <b>DLT</b>, and one <b>trace id</b> follows the order across
+         the async hop.</p>
+      <div class="hint">The amber scenarios inject faults through the <code>X-Chaos</code> header —
+        the same API surface the recovery tests use.</div>
     </section>
 
     <section class="card">
@@ -225,7 +253,23 @@
         </button>
         <button class="scenario" onclick="stage('declined')">
           <div class="t">↩&nbsp; Payment declined</div>
-          <div class="d">Laptop × 4 = ₩600,000 &gt; PG limit ₩500,000 — reserved stock is <code>released</code> by compensation.</div>
+          <div class="d">Laptop × 4 = $6,000 &gt; PG limit $5,000 — a business "no", never retried; stock <code>released</code>.</div>
+        </button>
+        <button class="scenario chaos" onclick="stage('flaky')">
+          <div class="t">⟳&nbsp; Flaky PSP</div>
+          <div class="d"><code>payment-transient:2</code> — two timeouts, retried with jittered backoff, then <code>CONFIRMED</code>.</div>
+        </button>
+        <button class="scenario chaos" onclick="stage('down')">
+          <div class="t">✕&nbsp; PSP down</div>
+          <div class="d"><code>payment-down</code> — the retry budget exhausts, compensation releases the stock.</div>
+        </button>
+        <button class="scenario chaos" onclick="stage('crash')">
+          <div class="t">⚡&nbsp; Crash after auth</div>
+          <div class="d"><code>confirm-crash</code> — money already authorized → compensation must <code>void</code> + release.</div>
+        </button>
+        <button class="scenario chaos" onclick="stage('poison')">
+          <div class="t">☠&nbsp; Poison event</div>
+          <div class="d"><code>poison-event</code> — the order is fine, its event is not: 3 consumer retries, then the <code>DLT</code>.</div>
         </button>
       </div>
     </section>
@@ -238,8 +282,9 @@
     <section class="card">
       <div class="label">Order lines</div>
       <div class="cart-lines" id="cart"><div class="cart-empty">// stage a scenario above, or add products manually</div></div>
-      <div class="over-limit" id="over-limit">⚠ total exceeds the simulated PG's ₩500,000 authorization
+      <div class="over-limit" id="over-limit">⚠ total exceeds the simulated PG's $5,000 authorization
         limit — this order will be declined and compensated.</div>
+      <div class="chaos-note" id="chaos-note"></div>
       <div class="cart-actions">
         <button class="btn" id="place" onclick="placeOrder(false)">Place order — run the saga</button>
         <button class="btn ghost" id="replay" onclick="placeOrder(true)" disabled>Replay same Idempotency-Key</button>
@@ -250,8 +295,13 @@
     <section id="result"></section>
     <section id="pipeline"></section>
 
+    <section class="card" id="dlt-card" style="display:none">
+      <div class="label">Dead letters — order-events.DLT</div>
+      <div class="dlt-rows" id="dlt-rows"></div>
+    </section>
+
     <footer>
-      <span>order-payment — saga · idempotency · transactional outbox</span>
+      <span>order-payment — saga · retries+compensation · outbox · DLT · tracing</span>
       <a href="https://github.com/jinwovo/order-payment" target="_blank">↗ github.com/jinwovo/order-payment</a>
     </footer>
   </main>
@@ -259,14 +309,22 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const won = (c) => '₩' + Number(c).toLocaleString();
+    const fmt = (c) => '$' + (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const PG_LIMIT = 500000; // payment.decline-above-cents default — display hint only, server decides
 
     let products = [];            // live catalog
     let prevStock = {};           // sku -> last seen stock (for flash)
     const cart = {};              // sku -> qty
+    let chaos = null;             // active X-Chaos directive
     let lastKey = null, lastOrderId = null;
-    let pollGen = 0;              // cancels stale fulfillment polls
+    let pollGen = 0;              // cancels stale pipeline polls
+
+    const CHAOS_LABEL = {
+      'payment-transient:2': 'PSP times out twice — the gateway retries with full-jitter backoff',
+      'payment-down': 'PSP down for every attempt — retries exhaust, then compensation',
+      'confirm-crash': 'confirm step crashes after authorization — void + release',
+      'poison-event': 'outbox payload corrupted — consumer retries 3×, then parks it on the DLT',
+    };
 
     async function api(path, opts) {
       const r = await fetch(path, opts);
@@ -285,7 +343,7 @@
             <div class="name">${esc(p.name)}</div>
             <div class="sku">${esc(p.sku)}</div>
             <div class="meta">
-              <span class="price">${won(p.priceCents)}</span>
+              <span class="price">${fmt(p.priceCents)}</span>
               <span class="stock ${flash && prevStock[p.sku] !== undefined && prevStock[p.sku] !== p.stock ? 'flash' : ''}"
                 >stock <b>${p.stock}</b></span>
             </div>
@@ -304,10 +362,15 @@
 
     function stage(kind) {
       for (const k of Object.keys(cart)) delete cart[k];
+      chaos = null;
       const desk = products.find((p) => p.sku === 'SKU-DESK');
       if (kind === 'happy') cart['SKU-MOUSE'] = 2;
       if (kind === 'oversell') cart['SKU-DESK'] = (desk ? desk.stock : 5) + 1;
       if (kind === 'declined') cart['SKU-LAPTOP'] = 4;
+      if (kind === 'flaky') { cart['SKU-MOUSE'] = 2; chaos = 'payment-transient:2'; }
+      if (kind === 'down') { cart['SKU-MOUSE'] = 2; chaos = 'payment-down'; }
+      if (kind === 'crash') { cart['SKU-MOUSE'] = 2; chaos = 'confirm-crash'; }
+      if (kind === 'poison') { cart['SKU-MOUSE'] = 1; chaos = 'poison-event'; }
       renderCart();
       $('place').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
@@ -319,6 +382,7 @@
     }
     function clearCart() {
       for (const k of Object.keys(cart)) delete cart[k];
+      chaos = null;
       renderCart();
     }
 
@@ -334,15 +398,23 @@
       if (!keys.length) {
         $('cart').innerHTML = '<div class="cart-empty">// stage a scenario above, or add products manually</div>';
         $('over-limit').className = 'over-limit';
+        $('chaos-note').className = 'chaos-note';
         return;
       }
       const lines = keys.map((sku) => {
         const p = products.find((x) => x.sku === sku) || { name: sku, priceCents: 0 };
-        return `<div class="line"><span>${esc(p.name)} × ${cart[sku]}</span><span>${won(p.priceCents * cart[sku])}</span></div>`;
+        return `<div class="line"><span>${esc(p.name)} × ${cart[sku]}</span><span>${fmt(p.priceCents * cart[sku])}</span></div>`;
       }).join('');
       $('cart').innerHTML = lines +
-        `<div class="line total"><span>total</span><span>${won(cartTotal())}</span></div>`;
+        `<div class="line total"><span>total</span><span>${fmt(cartTotal())}</span></div>`;
       $('over-limit').className = 'over-limit' + (cartTotal() > PG_LIMIT ? ' show' : '');
+      const note = $('chaos-note');
+      if (chaos) {
+        note.className = 'chaos-note show';
+        note.innerHTML = `⚡ X-Chaos: <b>${esc(chaos)}</b> — ${esc(CHAOS_LABEL[chaos] || '')}`;
+      } else {
+        note.className = 'chaos-note';
+      }
     }
 
     async function placeOrder(reuseKey) {
@@ -350,18 +422,21 @@
       if (!lines.length) { stage('happy'); return; }
       const key = (reuseKey && lastKey) ? lastKey : crypto.randomUUID();
       lastKey = key;
+      const chaosUsed = chaos;
       $('place').disabled = $('replay').disabled = true;
       try {
-        const order = await api('/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
-          body: JSON.stringify({ lines }),
-        });
+        const headers = { 'Content-Type': 'application/json', 'Idempotency-Key': key };
+        if (chaosUsed) headers['X-Chaos'] = chaosUsed;
+        const order = await api('/orders', { method: 'POST', headers, body: JSON.stringify({ lines }) });
         const replayed = reuseKey && order.id === lastOrderId;
         lastOrderId = order.id;
-        renderResult(order, key, replayed);
+        renderResult(order, key, replayed, chaosUsed);
         loadCatalog(true);                 // stock moved (or provably didn't) — refetch
-        pollFulfillment(order.id, replayed);
+        if (chaosUsed === 'poison-event' && order.status === 'CONFIRMED') {
+          pollDeadLetter(order.id);
+        } else if (order.status === 'CONFIRMED' || order.status === 'REJECTED') {
+          pollFulfillment(order.id, replayed);
+        }
       } catch (e) {
         $('result').innerHTML = `<div class="card"><div class="result-head">
           <span class="status-badge bad">ERROR</span><span>${esc(e.message)}</span></div></div>`;
@@ -381,11 +456,21 @@
       </div>`;
     }
 
-    function renderResult(o, key, replayed) {
+    function attemptsDots(attempts, finalOk) {
+      let dots = '';
+      for (let i = 1; i < attempts; i++) dots += '<span class="x">✕</span> ';
+      dots += finalOk ? '<span class="v">✓</span>' : '<span class="x">✕</span>';
+      return `<span class="tries">${dots}</span>`;
+    }
+
+    function renderResult(o, key, replayed, chaosUsed) {
       const ok = o.status === 'CONFIRMED';
       const reason = o.failureReason || '';
       const oos = reason.startsWith('OUT_OF_STOCK');
       const declined = reason.startsWith('PAYMENT_DECLINED');
+      const unavailable = reason.startsWith('PAYMENT_UNAVAILABLE');
+      const confirmFailed = reason.startsWith('CONFIRM_FAILED');
+      const attempts = o.paymentAttempts || 0;
 
       let steps;
       if (replayed) {
@@ -395,53 +480,78 @@
           step(2, 'Authorize payment', 'skip', 'not re-run — no double charge') +
           step(3, 'Record + outbox', 'skip', 'nothing new to record');
       } else {
+        let payState = oos ? 'skip' : (declined || unavailable) ? 'fail' : 'ok';
+        let payNote;
+        if (oos) payNote = 'never reached';
+        else if (declined) payNote = esc(reason.replace('PAYMENT_DECLINED: ', '')) + ' — a business "no", not retried';
+        else if (unavailable) payNote = attemptsDots(3, false) + ' PSP unreachable — retry budget exhausted → compensate';
+        else if (attempts > 1) payNote = attemptsDots(attempts, true) + ` approved on attempt ${attempts} (backoff + jitter)`;
+        else payNote = 'simulated PG approved';
+
+        let recState = confirmFailed ? 'fail' : 'ok';
+        let recNote = confirmFailed
+          ? 'confirm crashed AFTER authorization — void + release compensation'
+          : (ok ? 'CONFIRMED + OrderConfirmed event, one transaction' : 'REJECTED + OrderRejected event, one transaction');
+
         steps =
           step(0, 'Idempotency', 'ok', 'key claimed before any work') +
           step(1, 'Reserve stock', oos ? 'fail' : 'ok',
             oos ? 'atomic decrement refused — stock &lt; qty (all-or-nothing)' : 'atomic <code>stock >= qty</code> decrement') +
-          step(2, 'Authorize payment', oos ? 'skip' : declined ? 'fail' : 'ok',
-            oos ? 'never reached' : declined ? esc(reason.replace('PAYMENT_DECLINED: ', '')) : 'simulated PG approved') +
-          step(3, 'Record + outbox', 'ok',
-            ok ? 'CONFIRMED + OrderConfirmed event, one transaction' : 'REJECTED + OrderRejected event, one transaction');
+          step(2, 'Authorize payment', payState, payNote) +
+          step(3, 'Record + outbox', recState, recNote);
       }
+
+      const chips = [];
+      if (!replayed && declined) chips.push('↩ compensation — reserved stock released back to the shelf');
+      if (!replayed && unavailable) chips.push('↩ compensation — reserved stock released after the retry budget');
+      if (!replayed && confirmFailed) chips.push('↩ compensation — payment authorization VOIDED + stock released');
+      if (!replayed && ok && attempts > 1) chips.push(`⟳ survived a flaky PSP — ${attempts} attempts`);
 
       $('result').innerHTML = `<div class="card">
         <div class="result-head">
           <span class="status-badge ${replayed ? 'replay' : ok ? 'ok' : 'bad'}">${replayed ? '↺ REPLAYED · ' + esc(o.status) : esc(o.status)}</span>
-          <span class="result-total">${won(o.totalCents)}</span>
+          <span class="result-total">${fmt(o.totalCents)}</span>
           ${replayed ? '<span style="font-size:13px;color:var(--muted)">same key → same order, zero new side effects</span>' : ''}
         </div>
         <div class="steps">${steps}</div>
-        ${declined && !replayed ? '<span class="comp-chip">↩ compensation — reserved stock released back to the shelf</span>' : ''}
+        ${chips.map((c) => `<span class="comp-chip">${c}</span>`).join('')}
         <div class="detail">
           <span>order <b>${esc(o.id)}</b></span>
           <span>idempotency-key <b>${esc(key)}</b></span>
-          ${(o.items || []).map((i) => `<span>· ${esc(i.sku)} × ${i.quantity} @ ${won(i.unitPriceCents)}</span>`).join('')}
+          ${(o.items || []).map((i) => `<span>· ${esc(i.sku)} × ${i.quantity} @ ${fmt(i.unitPriceCents)}</span>`).join('')}
         </div>
+      </div>`;
+    }
+
+    function pipelineNodes(lastBox, lastCap, dead) {
+      return `
+        <div class="pnode"><div class="box">outbox_event</div><div class="cap">same tx + traceparent</div></div>
+        <div class="parrow"></div>
+        <div class="pnode"><div class="box">relay</div><div class="cap">SKIP LOCKED batch</div></div>
+        <div class="parrow"></div>
+        <div class="pnode"><div class="box">kafka · order-events</div><div class="cap">at-least-once</div></div>
+        <div class="parrow"></div>
+        <div class="pnode"><div class="box">idempotent consumer</div><div class="cap">event-id dedup</div></div>
+        <div class="parrow"></div>
+        <div class="pnode"><div class="box ${dead ? 'dlt' : ''}">${lastBox}</div><div class="cap">${lastCap}</div></div>`;
+    }
+
+    function renderConsole(title, lastBox, lastCap, dead, firstLine) {
+      $('pipeline').innerHTML = `<div class="console">
+        <div class="console-head">
+          <div class="t"><span class="live-dot on" id="pl-dot"></span> ${title}</div>
+          <div class="console-meta" id="pl-meta">waiting…</div>
+        </div>
+        <div class="pipe" id="pl-pipe">${pipelineNodes(lastBox, lastCap, dead)}</div>
+        <div class="console-out" id="pl-out">${firstLine}</div>
       </div>`;
     }
 
     async function pollFulfillment(orderId, replayed) {
       const gen = ++pollGen;
       const started = performance.now();
-      const nodes = `
-        <div class="pnode"><div class="box">outbox_event</div><div class="cap">same tx as order</div></div>
-        <div class="parrow"></div>
-        <div class="pnode"><div class="box">relay</div><div class="cap">poll → publish</div></div>
-        <div class="parrow"></div>
-        <div class="pnode"><div class="box">kafka · order-events</div><div class="cap">at-least-once</div></div>
-        <div class="parrow"></div>
-        <div class="pnode"><div class="box">idempotent consumer</div><div class="cap">event-id dedup</div></div>
-        <div class="parrow"></div>
-        <div class="pnode"><div class="box">order_projection</div><div class="cap">read model</div></div>`;
-      $('pipeline').innerHTML = `<div class="console">
-        <div class="console-head">
-          <div class="t"><span class="live-dot on" id="pl-dot"></span> Event pipeline</div>
-          <div class="console-meta" id="pl-meta">waiting for the consumer…</div>
-        </div>
-        <div class="pipe" id="pl-pipe">${nodes}</div>
-        <div class="console-out" id="pl-out">// polling GET /orders/${esc(orderId)}/fulfillment</div>
-      </div>`;
+      renderConsole('Event pipeline', 'order_projection', 'read model', false,
+        `// polling GET /orders/${esc(orderId)}/fulfillment`);
 
       for (let i = 0; i < 40; i++) {
         await new Promise((r) => setTimeout(r, 300));
@@ -453,8 +563,12 @@
           $('pl-dot').className = 'live-dot';
           $('pl-pipe').className = 'pipe done';
           $('pl-meta').textContent = 'projected in ' + ms + ' ms';
+          const trace = p.traceId
+            ? `<br />// one trace across the async hop → <span class="trace-chip">${esc(p.traceId)}</span> · <a href="http://localhost:9411/zipkin/traces/${esc(p.traceId)}" target="_blank">open in Zipkin</a>`
+            : '';
           $('pl-out').innerHTML =
-            `<span class="ok">✓ consumer projected the order</span> — status=${esc(p.status)} · amount=${won(p.amountCents)} · ${esc(p.updatedAt)}` +
+            `<span class="ok">✓ consumer projected the order</span> — status=${esc(p.status)} · amount=${fmt(p.amountCents)} · ${esc(p.updatedAt)}` +
+            trace +
             (replayed ? '<br />// replay note: the event was published once for the original request — the idempotent consumer saw nothing new' : '');
           return;
         }
@@ -463,6 +577,49 @@
       $('pl-dot').className = 'live-dot err';
       $('pl-meta').textContent = 'no projection after 12 s';
       $('pl-out').innerHTML = '<span class="warn">⚠ event not consumed yet — is Kafka running? (docker compose up)</span>';
+    }
+
+    async function pollDeadLetter(orderId) {
+      const gen = ++pollGen;
+      const started = performance.now();
+      renderConsole('Event pipeline — poison', 'order-events.DLT', 'parked after 3 retries', true,
+        `// the order CONFIRMED cleanly — its corrupted event is about to fail the consumer`);
+
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 400));
+        if (gen !== pollGen) return;
+        const rows = await api('/orders/dead-letters').catch(() => []);
+        const hit = (rows || []).find((d) => d.payload && d.payload.includes(orderId));
+        if (hit) {
+          const ms = Math.round(performance.now() - started);
+          $('pl-dot').className = 'live-dot err';
+          $('pl-pipe').className = 'pipe dead';
+          $('pl-meta').textContent = 'parked on the DLT in ' + ms + ' ms';
+          $('pl-out').innerHTML =
+            `<span class="warn">☠ consumer failed 3× (exponential backoff) → parked on order-events.DLT</span>` +
+            `<br />// reason: ${esc((hit.reason || 'deserialization failed').slice(0, 140))}` +
+            `<br />// the projection was never written — a poison event can't half-apply` +
+            `<br />// note: GET /orders/${esc(orderId)}/fulfillment stays 404 — that's the DLT doing its job`;
+          renderDeadLetters(rows);
+          return;
+        }
+      }
+      if (gen !== pollGen) return;
+      $('pl-meta').textContent = 'nothing parked after 24 s';
+      $('pl-out').innerHTML = '<span class="warn">⚠ DLT row not seen — is Kafka running? (docker compose up)</span>';
+    }
+
+    function renderDeadLetters(rows) {
+      if (!rows || !rows.length) return;
+      $('dlt-card').style.display = '';
+      $('dlt-rows').innerHTML = rows.slice(0, 8).map((d) => `
+        <div class="dlt-row">
+          <div class="r1"><span class="dlt-pill">DLT</span>
+            <span>event-id <b>${esc(d.eventId || '—')}</b></span>
+            <span>· ${esc(new Date(d.receivedAt).toLocaleTimeString())}</span></div>
+          <div class="why">${esc((d.reason || 'deserialization failed').slice(0, 160))}</div>
+          <div class="pl">${esc((d.payload || '').slice(0, 120))}…</div>
+        </div>`).join('');
     }
 
     loadCatalog(false);
